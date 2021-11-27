@@ -1,0 +1,230 @@
+<!--
+/*
+ *  The MIT License
+ * 
+ *  Copyright 2011 Greg.
+ * 
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to deal
+ *  in the Software without restriction, including without limitation the rights
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
+ * 
+ *  The above copyright notice and this permission notice shall be included in
+ *  all copies or substantial portions of the Software.
+ * 
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ *  THE SOFTWARE.
+ */
+/* SOME FILES HERE MAY CONTAIN EDITS FROM SRINATH SURESHKUMAR<srinathksk18@gmail.com> */
+-->
+<html><head>
+<meta http-equiv="content-type" content="text/html; charset=windows-1252">
+<title>Grammar Parser and Clusterer</title>
+<style>
+body { background-color: #F0F0F0; }
+body * { font-family:courier; }
+td { horizontal-align: middle; vertical-align: top; white-space: nowrap; }
+th { white-space: nowrap; }
+</style>
+<script language="javascript" src="LR(1)%20Parser%20Generator_files/underscore.js"></script>
+<script language="javascript" src="LR(1)%20Parser%20Generator_files/tools.js"></script>
+<script language="javascript" src="LR(1)%20Parser%20Generator_files/grammar.js"></script>
+<script language="javascript" src="LR(1)%20Parser%20Generator_files/grammarview.js"></script>
+<script language="javascript" src="LR(1)%20Parser%20Generator_files/lr1item.js"></script>
+<script language="javascript" src="LR(1)%20Parser%20Generator_files/lrclosuretable.js"></script>
+<script language="javascript" src="LR(1)%20Parser%20Generator_files/lrclosuretableview.js"></script>
+<script language="javascript" src="LR(1)%20Parser%20Generator_files/tree.js"></script>
+<script language="javascript" src="LR(1)%20Parser%20Generator_files/treeview.js"></script>
+<script language="javascript" src="LR(1)%20Parser%20Generator_files/lrtable.js"></script>
+<script language="javascript" src="LR(1)%20Parser%20Generator_files/lrtableview.js"></script>
+<script language="javascript" src="LR(1)%20Parser%20Generator_files/lrparseview.js"></script>
+</head>
+<body>
+<script language="javascript">
+
+
+var lrTable;
+
+function grammarChanged() {
+	displayRuleIndices();
+	
+	//var grammar = new Grammar($element('grammar').value);
+	var lrClosureTable = new LRClosureTable(grammar);
+	lrTable = new LRTable(lrClosureTable);
+
+	$element('firstFollowView').innerHTML = formatFirstFollow(grammar);
+	$element('lrClosureTableView').innerHTML = formatLRClosureTable(lrClosureTable);
+	$element('lrTableView').innerHTML = formatLRTable(lrTable);
+	
+	parseInput();
+}
+
+function therunner() {
+	var parainput = $element('parainput').value;
+	var number = $element('clusternumber').value;
+
+	var url = new URL('http://localhost:3000/');
+	var clusterResult, posResult;
+
+	var params = {input: parainput, clusternumber: number};
+
+	var sentences = parainput.split(".");
+	
+	url.search = new URLSearchParams(params).toString();
+	
+
+	const request = async() => {
+		
+		await fetch(url).then(data => {
+			return data.json();
+		}).then(res => {
+			clusterResult = res["cluster"];
+			posResult = res["pos"];
+		}).catch(error => {console.log(error)});
+
+		posResult = posResult[1];
+		clusterResult = clusterResult[1];
+
+		posResult = posResult.toLowerCase();
+		parainput = posResult;
+
+		console.log(clusterResult);
+		$element('cluster').value = clusterResult;
+
+		var str = "";
+		var i = 0;
+		var parseResult = "";
+		
+		parainput = parainput.split(".");
+		for(var i = 0; i < parainput.length ; i++) {
+			if(parainput[i] == " " || parainput[i] == "\n")
+				continue;
+			$element('input').value = parainput[i];
+			parseResult += sentences[i] + " ";
+			grammarChanged();
+			var result = parseInput();
+			if(result == 0)
+				parseResult += " - not acccepted\n";
+			else	
+				parseResult += " - accepted\n" 
+		}
+		console.log(parseResult);
+		$element('correctness').value = parseResult	;
+	};
+
+	request();
+	
+	
+	
+}
+
+</script>
+<table><tbody><tr>
+	<td>
+	<div id="grammarView" hidden>
+	</div>
+
+	<br>
+	<div id ='firstFollowView' hidden></div>
+
+	<div style="height: 100%; overflow: auto;">
+		<div id="lrClosureTableView" hidden></div>
+		<div id="lrTableView" hidden ></div>
+	</td>
+	<td> 
+			<div id="lrParseView">
+			</div>
+			<textarea id='acc-state' hidden></textarea>
+			INPUT CONTENT : <textarea id='parainput' rows='7' cols='30'></textarea>
+			NUMBER OF CLUSTERS : <input type='number' id='clusternumber'></input><br>
+			<button onclick="therunner()" height='200px'>RUNNER</button><br>
+			CLUSTERS : <textarea id='cluster' rows='12' cols='40'></textarea>
+			GRAMMATICAL STATUS : <textarea id='correctness' rows='12' cols='40'></textarea>
+			
+	</td></tr></tbody></table>
+	</div>
+</td></tr>
+</tbody></table>
+
+
+<script language="javascript">
+{
+	var grammar = new Grammar('S\' -> S\n\
+S -> N V N\n\
+S -> N\n\
+N -> N V\n\
+N -> N V N\n\
+N -> N N\n\
+N -> V N\n\
+N -> d N\n\
+N -> p N\n\
+N -> N C N\n\
+N -> C N\n\
+N -> j N\n\
+N -> t N\n\
+N -> t V N\n\
+N -> N t N\n\
+N -> n\n\
+N -> j\n\
+V -> V V\n\
+V -> V\n\
+V -> V r\n\
+V -> V C V\n\
+V -> r C V\n\
+V -> r V\n\
+V -> V N V\n\
+V -> v\n\
+C -> c\n\
+C -> i\n\
+');
+
+	$element('grammarView').innerHTML = formatGrammar(grammar);
+/*
+N -> \'\'\n\
+V -> \'\'\n\
+S -> N\n\
+
+S -> N V \n\
+S -> d v d n\n\
+N -> d n\n\
+N -> d ad n\n\
+N -> p n\n\
+N -> p\n\
+N -> n\n\
+V -> v\n\
+V -> v j\n\
+V -> v v\n\
+V -> \'\'\n\
+V -> v a v*/
+
+/*
+this is a sentence. i love my school. my teacher teaches well.
+roses are red. the rose plant has thorns. srinath is a good boy. the is red because it is red. rose and jasmine are flowers. 
+football is my favourite game. messi is my favorite player. 
+
+my school is nearby. football is my favorite game. my school has a big ground. paris is a beautiful city. messi is most popular football player. paris is city of love. my school has over 350 students.
+
+She went to school. I want to know your name. They lived in a huge palace. The angry girl kicked the ball.
+
+Rahul is a clever boy.He likes tasty pizza.I love fresh flowers.Jack likes to visit lovely places.
+
+Hellen Keller was blind. Sun rises in the east. The earth is round. The universe is infinite. 
+
+The girl was washing the car. Sita writes a letter. Rita wrote a letter. Rahul has written a letter.
+
+The car was being washed by the girl. A letter is written by Sita. A letter has been written by Teena.
+
+*/
+}
+
+$element('lrParseView').innerHTML = formatInitialParseView('', 100);
+
+</script>
+</body></html>
